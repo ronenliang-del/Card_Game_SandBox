@@ -1,6 +1,23 @@
 const roomSessionKey = "sandbox-online-seat";
-const inviteMatch = /^#join=([a-zA-Z0-9_-]{16})\.([a-zA-Z0-9_-]{32})$/.exec(location.hash);
 let onlineConnecting = false;
+
+function readInvite(link) {
+  const pattern = /^([a-zA-Z0-9_-]{16})\.([a-zA-Z0-9_-]{32})$/;
+  const code = pattern.exec(link);
+  if (code) return { roomId: code[1], invite: code[2] };
+  const url = new URL(link);
+  if (url.origin !== location.origin) throw new Error("Open the invite on the game site where the room was created.");
+  const match = url.hash.startsWith("#join=") && pattern.exec(url.hash.slice(6));
+  if (!match) throw new Error("Paste the complete invite link, including the #join= part, or ask the host for the room code.");
+  return { roomId: match[1], invite: match[2] };
+}
+
+function showInviteFromAddress() {
+  if (onlineRoom || !location.hash.startsWith("#join=")) return false;
+  $("join-invite").value = location.href;
+  showWorkspace(true);
+  return true;
+}
 
 function roomCanAct() {
   return onlineRoom.ready && !state.finished && state.active === onlineRoom.player;
@@ -168,8 +185,10 @@ async function connectOnline(path, body) {
   try {
     const data = await roomRequest(path, { body });
     enterOnlineRoom(data);
-    if (inviteMatch) history.replaceState(null, "", location.pathname + location.search);
-    $("join-panel").hidden = true;
+    if (location.hash.startsWith("#join=")) {
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+    $("join-invite").value = "";
   } catch (error) {
     setStatus(error.message);
   } finally {
@@ -189,12 +208,25 @@ $("create-room").onclick = () => {
   }
 };
 $("join-room").onclick = () => {
-  if (inviteMatch) connectOnline("/" + inviteMatch[1] + "/join", { invite: inviteMatch[2] });
+  const link = $("join-invite").value.trim();
+  if (!link) { setStatus("Paste the private invite link first."); return; }
+  try {
+    const { roomId, invite } = readInvite(link);
+    connectOnline("/" + roomId + "/join", { invite });
+  } catch (error) {
+    setStatus(error instanceof TypeError ? "Paste the complete invite link or room code." : error.message);
+  }
 };
 $("copy-invite").onclick = async () => {
   const input = $("invite-link");
   try { await navigator.clipboard.writeText(input.value); setStatus("Invite link copied."); }
   catch { input.select(); setStatus("Copy the selected invite link."); }
+};
+$("copy-room-code").onclick = async () => {
+  if (!onlineRoom?.invite) return;
+  const code = onlineRoom.id + "." + onlineRoom.invite;
+  try { await navigator.clipboard.writeText(code); setStatus("Room code copied."); }
+  catch { setStatus("Copy this room code: " + code); }
 };
 $("leave-room").onclick = () => {
   if (!onlineRoom) return;
@@ -214,10 +246,8 @@ $("leave-room").onclick = () => {
   renderTable();
 };
 
-if (inviteMatch) {
-  $("join-panel").hidden = false;
-  showWorkspace(true);
-} else {
+window.addEventListener("hashchange", showInviteFromAddress);
+if (!showInviteFromAddress()) {
   (async () => {
     let seat;
     try { seat = JSON.parse(sessionStorage.getItem(roomSessionKey)); } catch {}

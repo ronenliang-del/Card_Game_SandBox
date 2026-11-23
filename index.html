@@ -249,6 +249,7 @@ summary { cursor: pointer; }
       <div id="invite-panel" class="toolbar" hidden>
         <label>Private invite link <input id="invite-link" type="text" readonly></label>
         <button id="copy-invite" type="button">Copy invite link</button>
+        <button id="copy-room-code" type="button">Copy room code</button>
       </div>
     </section>
     <div class="toolbar table-heading">
@@ -284,8 +285,8 @@ summary { cursor: pointer; }
         <button type="submit">Start new table</button>
         <button id="create-room" type="button">Start online room</button>
       </div>
-      <div id="join-panel" class="toolbar" hidden>
-        <p>You have a private invitation to an online table.</p>
+      <div id="join-panel" class="toolbar">
+        <label>Online room invite <input id="join-invite" type="text" placeholder="Paste a link or room code" autocomplete="off" spellcheck="false"></label>
         <button id="join-room" type="button">Join online room</button>
       </div>
       <div class="fields">

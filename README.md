@@ -60,7 +60,7 @@ With Node.js installed, run `node serve-local.cjs`, then open `http://127.0.0.1:
 
 ## Online two-player rooms
 
-Open the sandbox through its Node server. In **Game editor**, load or create a two-player preset, then choose **Start online room**. Copy the private, single-use invite link and send it to the second player. They open it on their device and choose **Join online room**. Each player sees their own hand, and the current player controls the turn. You can refresh the same browser tab and return to your seat. Leaving closes the room for both players.
+Open the sandbox through its Node server. In **Game editor**, load or create a two-player preset, then choose **Start online room**. Copy the private, single-use invite link and send it to the second player. They open it on their device and choose **Join online room**. If a messaging app drops the invite fragment, use **Copy room code** and have them paste the code into **Online room invite** in the Game editor on the same site. Each player sees their own hand, and the current player controls the turn. You can refresh the same browser tab and return to your seat. Leaving closes the room for both players.
 
 The localhost address is for testing from two tabs on the same computer. For internet play, deploy this folder as a single Node.js 22+ service behind an HTTPS host. Use `npm start` or `node serve-local.cjs` as the start command, set `PUBLIC_ORIGIN` to the site's HTTPS origin, and let the host provide `PORT` or use 8765. The same host serves the page and the room API. GitHub Pages can serve the local tabletop, but internet rooms need the Node service. Online presets currently have a 3 MB limit. Rooms are held in memory and expire after two hours without requests or when the server restarts.
 
