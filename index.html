@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'sha256-6L6eTj3Pd+tBYaEjT+dZkwKyEU6Y6RzQnP/tGVxzpms='; img-src data:; media-src data:; font-src data:; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <title>Card Game Sandbox</title>
+  <style>
+:root {
+  color-scheme: light;
+  --paper: #f8f3e9;
+  --ink: #231e18;
+  --line: #b9aa95;
+  --accent: #a43e28;
+  --serif: Georgia, "Times New Roman", serif;
+  font-family: var(--menus-font, var(--theme-font, system-ui)), sans-serif;
+  background: var(--paper);
+  color: var(--menus-color, var(--ink));
+}
+body { margin: 0; font-size: var(--menus-size, 16px); line-height: 1.5; }
+main { max-width: 76rem; margin: auto; padding: clamp(1rem, 4vw, 3rem); }
+header, .toolbar, nav { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; }
+header { justify-content: space-between; padding-block: .25rem 1.25rem; border-bottom: 2px solid var(--ink); }
+nav { background: var(--menu-color, #f5eddf); padding: .25rem; gap: .3rem; max-width: 100%; }
+nav button { border-color: transparent; }
+h1, h2 { font-family: var(--menus-font, var(--theme-font, var(--serif))); line-height: 1.05; }
+h1 { font-size: clamp(1.45em, 4.6vw, 2.8em); font-weight: 500; letter-spacing: -.045em; margin: 0; }
+h2 { font-size: clamp(1.4em, 3vw, 2.15em); font-weight: 500; letter-spacing: -.025em; }
+h1, h2, h3, .player-score strong { overflow-wrap: anywhere; min-width: 0; }
+h2, h3 { margin-block: .6rem; }
+.toolbar { margin-block: 1rem; }
+.table-heading h2 { flex: 1 1 12rem; }
+.turn-bar { padding-block: .7rem; border-block: 1px solid var(--line); }
+#turn { flex: 1 1 10rem; overflow-wrap: anywhere; }
+.card-actions { align-items: end; }
+#selection { flex: 1 1 12rem; align-self: center; overflow-wrap: anywhere; }
+button, input, textarea, select {
+  font: inherit;
+  background: var(--menu-color, #f5eddf);
+  color: var(--menus-color, var(--menu-text, #231e18));
+  border: 1px solid var(--line);
+  border-radius: .25rem;
+  padding: .42rem .68rem;
+  max-width: 100%;
+}
+button { cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+nav button[aria-pressed="true"], button[type="submit"], #end-turn {
+  background: var(--button-color, #a43e28);
+  color: var(--menus-color, var(--button-text, #fff));
+}
+button:disabled { opacity: .5; cursor: default; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+#status { color: var(--menus-color, #84341f); overflow-wrap: anywhere; }
+#status:empty { margin: .9rem 0 0; }
+#zones, .fields, .card-editor { display: grid; gap: .75rem; }
+#zones { grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); }
+.zone, .card-editor, details { border: 1px solid var(--line); border-radius: .35rem; padding: .85rem; }
+#zones { background: var(--mat-color, #ddd4bc) center / cover; border: 1px solid #a69679; border-radius: .45rem; padding: .75rem; }
+#zones[data-layout="stack"] { grid-template-columns: minmax(0, 1fr); }
+#zones[data-layout="custom"], #layout-preview {
+  display: block;
+  position: relative;
+  box-sizing: border-box;
+  height: clamp(26rem, 65vh, 45rem);
+  padding: 0;
+}
+#zones[data-layout="custom"] .zone, .layout-tile {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: auto;
+}
+#zones[data-card-size="compact"] { --card-width: 5.5rem; --card-height: 4rem; --card-image-height: 3rem; }
+#zones[data-card-size="large"] { --card-width: 9rem; --card-height: 6rem; --card-image-height: 6rem; }
+.zone { background: color-mix(in srgb, var(--menu-color, #f5eddf) 93%, transparent); color: var(--menus-color, var(--menu-text, #231e18)); min-width: 0; min-height: 9rem; }
+#zones[data-layout="custom"] .zone { min-height: 0; }
+.zone h3 { border-bottom: 1px solid var(--line); margin: 0 0 .65rem; padding-bottom: .4rem; font-size: .86em; letter-spacing: .04em; }
+.card[data-back] { background-image: var(--back-image); background-position: center; background-size: cover; }
+.card[data-back] span { background: var(--paper); color: var(--cards-color, var(--ink)); border-radius: .2rem; padding: .15rem .3rem; }
+.artwork-field { display: grid; gap: .4rem; min-width: 0; align-content: start; }
+#audio-fields { grid-column: 1 / -1; }
+.cards { display: flex; flex-wrap: wrap; gap: .5rem; min-height: 3rem; }
+.card {
+  width: var(--card-width, 7rem); min-height: var(--card-height, 5rem); max-width: 100%;
+  overflow-wrap: anywhere; text-align: left; background-color: #fffaf0; color: var(--cards-color, var(--ink));
+  font-family: var(--cards-font, var(--theme-font, var(--serif)));
+  font-size: var(--cards-size, 16px);
+  box-shadow: 1px 2px 0 #6d563321;
+}
+.card[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: -2px; }
+.card img { display: block; width: 100%; height: var(--card-image-height, 4rem); object-fit: contain; }
+.card small { display: block; margin-top: .35rem; }
+label { display: grid; gap: .25rem; min-width: 0; overflow-wrap: anywhere; }
+label:has(> input[type="checkbox"]) { display: flex; align-items: center; justify-content: space-between; }
+[hidden] { display: none !important; }
+.scoreboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: .5rem;
+  margin-block: .75rem;
+}
+.player-score {
+  display: grid;
+  gap: .35rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line);
+  background: var(--menu-color, #f5eddf);
+  color: var(--menus-color, var(--menu-text, #231e18));
+  padding: .65rem .8rem;
+}
+.player-score[data-active] { border-left-color: var(--accent); }
+.score-controls { display: flex; gap: .35rem; }
+.score-controls button { min-width: 2.75rem; }
+.fields, .card-editor { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); margin-block: .75rem; }
+fieldset { min-inline-size: 0; border: 1px solid var(--line); margin: 0 0 1rem; }
+legend { padding-inline: .4rem; font-weight: 650; overflow-wrap: anywhere; max-width: 100%; }
+#game-form > fieldset { margin-block: 1.25rem; padding: 1rem; }
+#typography-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: .75rem; }
+.type-editor { display: grid; margin: 0; gap: .65rem; align-content: start; }
+#typography-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: .75rem;
+}
+.type-sample { min-width: 0; padding: .7rem; border: 1px solid var(--line); }
+.type-sample > strong { display: block; margin-bottom: .45rem; }
+.type-sample .card, .menu-sample, .victor-sample {
+  box-sizing: border-box; width: 100%; padding: .6rem; border: 1px solid var(--line); overflow-wrap: anywhere;
+}
+.menu-sample, .victor-sample { background: var(--menu-color); }
+.menu-sample {
+  font-family: var(--menus-font, var(--theme-font, system-ui)), sans-serif;
+  font-size: var(--menus-size);
+  color: var(--menus-color, var(--menu-text));
+}
+.menu-sample button { display: block; margin-top: .45rem; opacity: 1; }
+.victor-sample {
+  font-family: var(--victor-font, var(--theme-font, var(--serif)));
+  font-size: var(--victor-size);
+  color: var(--victor-color, var(--menu-text));
+  border-top: 3px solid var(--accent);
+}
+.victor-sample :is(h4, p) { margin: 0; }
+.definition-row, .interaction-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+  align-items: end;
+  gap: .5rem;
+  padding: .55rem 0;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: .6rem;
+}
+.card-mechanics { grid-column: 1 / -1; min-width: 0; }
+.custom-counter { display: flex; gap: .3rem; flex-wrap: wrap; align-items: center; }
+.custom-counter span { flex: 1 1 6rem; overflow-wrap: anywhere; }
+.custom-counter button { padding: .25rem .4rem; }
+.stat-value { min-width: 0; padding: .4rem; border: 1px solid var(--line); }
+input[type="number"], select { min-width: 0; }
+input[type="color"] { width: 100%; min-height: 2.5rem; box-sizing: border-box; }
+input[type="color"]:disabled { opacity: .45; }
+textarea { resize: vertical; }
+input[type="file"] { width: 100%; box-sizing: border-box; }
+summary { cursor: pointer; }
+#rulebook { white-space: pre-wrap; overflow-wrap: anywhere; }
+#victor-dialog, #layout-dialog {
+  box-sizing: border-box;
+  width: min(32rem, calc(100% - 2rem));
+  max-height: 90vh;
+  padding: clamp(1rem, 5vw, 2rem);
+  border: 1px solid var(--line);
+  border-radius: .35rem;
+  background: var(--menu-color, #f5eddf);
+  color: var(--menus-color, var(--menu-text, #231e18));
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+#victor-dialog {
+  font-family: var(--victor-font, var(--theme-font, var(--serif)));
+  font-size: var(--victor-size, 18px);
+  color: var(--victor-color, var(--menu-text, #231e18));
+  border-top: 4px solid var(--accent);
+}
+#victor-dialog :is(h2, button) { font-family: inherit; color: inherit; }
+#layout-dialog { width: min(52rem, calc(100% - 2rem)); text-align: left; }
+#victor-dialog::backdrop, #layout-dialog::backdrop { background: rgb(0 0 0 / .75); }
+#victor-image { display: block; max-width: 100%; max-height: 45vh; margin: 1rem auto; object-fit: contain; }
+#layout-preview {
+  height: clamp(13rem, 36vh, 22rem);
+  background: #e9ddc8;
+  outline: 1px solid var(--line);
+  border-radius: .35rem;
+}
+.layout-tile {
+  background: #f8f3e9;
+  color: var(--ink);
+  border: 2px solid var(--accent);
+  border-radius: .35rem;
+  padding: .4rem;
+  font-size: .85rem;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.layout-tile span { pointer-events: none; }
+.layout-tile:active { cursor: grabbing; z-index: 1; }
+.layout-tile[data-raised] { z-index: 1; }
+.resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: min(2rem, 100%);
+  height: min(2rem, 100%);
+  background: linear-gradient(135deg, transparent 48%, var(--accent) 50%);
+  cursor: nwse-resize;
+  touch-action: none;
+}
+.coordinate-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 5rem), 1fr));
+  gap: .4rem;
+  margin-top: .65rem;
+  min-width: 0;
+}
+.coordinate-row input { min-width: 0; }
+#layout-status { min-height: 1.5em; }
+  </style>
+  <script src="tabletop.js" defer></script>
+  <script src="app.js" defer></script>
+  <script src="online-play.js" defer></script>
+</head>
+<body>
+<main>
+  <header>
+    <h1 id="workspace-title">Card Game Sandbox</h1>
+    <nav aria-label="Workspace">
+      <button id="play-tab" type="button" aria-pressed="true">Tabletop</button>
+      <button id="edit-tab" type="button" aria-pressed="false">Game editor</button>
+    </nav>
+  </header>
+  <p id="status" role="status"></p>
+  <section id="play">
+    <section id="online-table" hidden aria-label="Online room">
+      <div class="toolbar">
+        <strong id="room-status" role="status"></strong>
+        <button id="leave-room" type="button">Leave online room</button>
+      </div>
+      <div id="invite-panel" class="toolbar" hidden>
+        <label>Private invite link <input id="invite-link" type="text" readonly></label>
+        <button id="copy-invite" type="button">Copy invite link</button>
+      </div>
+    </section>
+    <div class="toolbar table-heading">
+      <h2 id="game-title"></h2>
+      <button id="restart" type="button">Restart table</button>
+      <button id="toggle-sound" type="button" aria-pressed="false">Enable sound</button>
+    </div>
+    <div class="toolbar turn-bar">
+      <strong id="turn"></strong>
+      <button id="draw" type="button">Draw card</button>
+      <button id="shuffle" type="button">Shuffle deck</button>
+      <button id="end-turn" type="button">End turn</button>
+      <button id="reveal" type="button">Reveal hand</button>
+    </div>
+    <section id="scores" class="scoreboard" aria-label="Player scores"></section>
+    <div id="zones" aria-label="Table zones"></div>
+    <div class="toolbar card-actions">
+      <span id="selection"></span>
+      <label>Destination <select id="destination"></select></label>
+      <button id="move" type="button">Move card</button>
+      <button id="flip" type="button">Flip card</button>
+    </div>
+    <details><summary>Rulebook</summary><p id="rulebook"></p></details>
+  </section>
+  <section id="editor" hidden>
+    <h2>Game editor</h2>
+    <form id="game-form">
+      <div class="toolbar">
+        <label>Default presets <select id="default-presets"><option value="">Choose a preset</option></select></label>
+        <button id="load-default-preset" type="button" disabled>Load preset</button>
+        <label class="file-label">Import game preset <input id="import" type="file" accept=".json,application/json"></label>
+        <button id="export" type="button">Download game preset</button>
+        <button type="submit">Start new table</button>
+        <button id="create-room" type="button">Start online room</button>
+      </div>
+      <div id="join-panel" class="toolbar" hidden>
+        <p>You have a private invitation to an online table.</p>
+        <button id="join-room" type="button">Join online room</button>
+      </div>
+      <div class="fields">
+        <label>Game title <input id="title" required maxlength="80"></label>
+        <label>Players <input id="players" type="number" min="1" max="6" required></label>
+        <label>Starting hand <input id="starting-hand" type="number" min="0" max="30" required></label>
+        <label>Cards to draw at turn start <input id="turn-draw" type="number" min="0" max="30" required></label>
+      </div>
+      <label>Rulebook <textarea id="rules" rows="5" maxlength="10000"></textarea></label>
+      <fieldset class="fields">
+        <legend>Theme</legend>
+        <label>Playmat color <input id="mat-color" type="color"></label>
+        <label>Menu color <input id="menu-color" type="color"></label>
+        <label>Button color <input id="button-color" type="color"></label>
+        <div id="mat-artwork"></div>
+        <div id="back-artwork"></div>
+        <div id="theme-font"></div>
+      </fieldset>
+      <fieldset>
+        <legend>Typography</legend>
+        <p>Set the font, size, and text color for each area. Leave the font empty to use the shared interface font or the default.</p>
+        <div id="typography-fields"></div>
+        <h3>Live typography preview</h3>
+        <div id="typography-preview">
+          <div class="type-sample"><strong>Cards</strong><div class="card"><span id="preview-card-name">Sample card</span><small id="preview-card-text"></small></div></div>
+          <div class="type-sample"><strong>Menus</strong><div class="menu-sample"><span id="preview-menu-title"></span><button type="button" disabled>Draw card</button></div></div>
+          <div class="type-sample"><strong>Victor screens</strong><div class="victor-sample"><h4 id="preview-victor-title">Victory</h4><p id="preview-victor-message">Player 1 wins!</p></div></div>
+        </div>
+      </fieldset>
+      <fieldset class="fields">
+        <legend>Tabletop layout and labels</legend>
+        <label>Header title <input id="ui-title" maxlength="80" required></label>
+        <label>Zone layout <select id="ui-layout"><option value="grid">Responsive grid (default)</option><option value="stack">Stacked</option><option value="custom">Custom positions</option></select></label>
+        <button id="edit-positions" type="button">Position zones</button>
+        <label>Card size <select id="ui-card-size"><option value="standard">Standard</option><option value="compact">Compact</option><option value="large">Large</option></select></label>
+        <label>Deck label <input id="deck-label" maxlength="40" required></label>
+        <label>Hand label <input id="hand-label" maxlength="40" required></label>
+        <label>Table label <input id="table-label" maxlength="40" required></label>
+        <label>Discard label <input id="discard-label" maxlength="40" required></label>
+      </fieldset>
+      <fieldset>
+        <legend>Player scoreboard</legend>
+        <div id="player-labels" class="fields"></div>
+        <label><span><input id="manual-points" type="checkbox"> Allow manual point adjustments</span></label>
+      </fieldset>
+      <fieldset>
+        <legend>Card statistics and player counters</legend>
+        <div class="fields">
+          <section><h3>Card statistics</h3><div id="stat-definitions"></div><button id="add-stat" type="button">Add statistic</button></section>
+          <section><h3>Player counters</h3><div id="counter-definitions"></div><button id="add-counter" type="button">Add counter</button></section>
+        </div>
+        <p>Set each card’s starting statistics and play interactions in its card design below.</p>
+      </fieldset>
+      <fieldset class="fields">
+        <legend>Audio</legend>
+        <div id="audio-fields" class="fields"></div>
+      </fieldset>
+      <fieldset class="fields">
+        <legend>Automatic rules</legend>
+        <label>Points to win (0 disables) <input id="win-points" type="number" min="0" max="999" required></label>
+        <label>Points at turn start <input id="turn-points" type="number" min="0" max="30" required></label>
+        <label><span><input id="win-empty-hand" type="checkbox"> Win by playing your last card</span></label>
+      </fieldset>
+      <fieldset>
+        <legend>Counter triggers and victory</legend>
+        <p>Choose a player counter and a threshold. A rule fires when the counter crosses into the chosen range during play.</p>
+        <div id="counter-rules"></div>
+        <button id="add-counter-rule" type="button">Add counter rule</button>
+      </fieldset>
+      <fieldset>
+        <legend>Victor displays</legend>
+        <p>Add a display for any score threshold. It appears once per player per match. An ending display stops the match.</p>
+        <div id="victor-displays"></div>
+        <button id="add-victor" type="button">Add victor display</button>
+      </fieldset>
+      <h3>Card library</h3>
+      <p>Set the copies and optional artwork for each card. Card effects run when you move the card face up from your hand to the table.</p>
+      <div id="library"></div>
+      <div class="toolbar">
+        <button id="add-card" type="button">Add card</button>
+      </div>
+      <p>Presets contain the game design, player labels, layout, rules, and media. Share the downloaded JSON file so others can import it here.</p>
+    </form>
+  </section>
+</main>
+<dialog id="victor-dialog" aria-labelledby="victor-title">
+  <h2 id="victor-title"></h2>
+  <p id="victor-player"></p>
+  <img id="victor-image" alt="" hidden>
+  <p id="victor-message" hidden></p>
+  <button id="dismiss-victor" type="button">Continue</button>
+</dialog>
+<dialog id="layout-dialog" aria-labelledby="layout-title">
+  <h2 id="layout-title">Position tabletop zones</h2>
+  <p>Drag each zone or its bottom-right handle. You can also enter its position and size as percentages of the playmat.</p>
+  <div id="layout-preview" aria-label="Zone positioning preview"></div>
+  <div id="layout-coordinates"></div>
+  <p id="layout-status" role="status"></p>
+  <div class="toolbar">
+    <button id="reset-positions" type="button">Reset positions</button>
+    <button id="cancel-positions" type="button">Cancel</button>
+    <button id="save-positions" type="button">Apply custom layout</button>
+  </div>
+</dialog>
+</body>
+</html>
